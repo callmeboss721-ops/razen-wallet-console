@@ -4,7 +4,7 @@ import { RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { TxRow } from "@/components/razen/tx-row";
 import { dayLabel } from "@/lib/razen/format";
-import { ymd } from "@/lib/tmnone/bootstrap";
+import { ymd } from "@/lib/tmnone/dates";
 import { useRazen } from "@/lib/razen/store";
 
 export const Route = createFileRoute("/history")({ component: HistoryPage });

@@ -9,7 +9,7 @@ import { tmnConfigured } from "@/lib/tmnone/creds";
 import { rememberLocal } from "@/lib/memory/client";
 import { payeeKey } from "@/lib/memory/payee";
 import { asList, mapHistory, parseBalance, pickDeepStr, pickStr } from "@/lib/tmnone/parse";
-import { addYmd, ymd } from "@/lib/tmnone/bootstrap";
+import { addYmd, ymd } from "@/lib/tmnone/dates";
 import type {
   Account,
   Contact,

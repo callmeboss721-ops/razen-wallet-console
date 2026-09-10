@@ -7,6 +7,7 @@ import {
   Send,
   Settings2,
   Wallet,
+  WalletCards,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -21,6 +22,7 @@ import { useRazen } from "@/lib/razen/store";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { to: "/summary", label: "สรุปยอด", short: "ยอด", icon: WalletCards, tone: "in" },
   { to: "/desk", label: "ภาพรวม", short: "ภาพรวม", icon: Home, tone: "gold" },
   { to: "/transfer", label: "โอน", short: "โอน", icon: Send, tone: "teal" },
   { to: "/history", label: "ประวัติ", short: "ประวัติ", icon: Clock3, tone: "warn" },
@@ -30,6 +32,7 @@ const NAV = [
 ] as const;
 
 const TITLE: Record<string, { kicker: string; title: string }> = {
+  "/summary": { kicker: "กระเป๋า", title: "สรุปยอดเงิน" },
   "/desk": { kicker: "วันนี้", title: "ภาพรวม" },
   "/transfer": { kicker: "โอน", title: "จ่าย" },
   "/history": { kicker: "ตรวจ", title: "ประวัติ" },
@@ -39,7 +42,7 @@ const TITLE: Record<string, { kicker: string; title: string }> = {
 };
 
 const MOBILE_NAV = NAV.filter((n) =>
-  ["/", "/desk", "/transfer", "/history", "/gifts", "/tools"].includes(n.to),
+  ["/", "/summary", "/desk", "/transfer", "/history", "/gifts", "/tools"].includes(n.to),
 );
 
 export function Shell({ children }: { children: React.ReactNode }) {

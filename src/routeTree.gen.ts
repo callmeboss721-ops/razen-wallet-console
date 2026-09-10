@@ -14,6 +14,7 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as DeskRouteImport } from './routes/desk'
 import { Route as GiftsRouteImport } from './routes/gifts'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as SummaryRouteImport } from './routes/summary'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as TransferRouteImport } from './routes/transfer'
 import { Route as ApiArtifactRouteImport } from './routes/api/artifact'
@@ -48,6 +49,11 @@ const GiftsRoute = GiftsRouteImport.update({
 const HistoryRoute = HistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SummaryRoute = SummaryRouteImport.update({
+  id: '/summary',
+  path: '/summary',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ToolsRoute = ToolsRouteImport.update({
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/desk': typeof DeskRoute
   '/gifts': typeof GiftsRoute
   '/history': typeof HistoryRoute
+  '/summary': typeof SummaryRoute
   '/tools': typeof ToolsRoute
   '/transfer': typeof TransferRoute
   '/api/artifact': typeof ApiArtifactRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/desk': typeof DeskRoute
   '/gifts': typeof GiftsRoute
   '/history': typeof HistoryRoute
+  '/summary': typeof SummaryRoute
   '/tools': typeof ToolsRoute
   '/transfer': typeof TransferRoute
   '/api/artifact': typeof ApiArtifactRoute
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/desk': typeof DeskRoute
   '/gifts': typeof GiftsRoute
   '/history': typeof HistoryRoute
+  '/summary': typeof SummaryRoute
   '/tools': typeof ToolsRoute
   '/transfer': typeof TransferRoute
   '/api/artifact': typeof ApiArtifactRoute
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/desk'
     | '/gifts'
     | '/history'
+    | '/summary'
     | '/tools'
     | '/transfer'
     | '/api/artifact'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/desk'
     | '/gifts'
     | '/history'
+    | '/summary'
     | '/tools'
     | '/transfer'
     | '/api/artifact'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/desk'
     | '/gifts'
     | '/history'
+    | '/summary'
     | '/tools'
     | '/transfer'
     | '/api/artifact'
@@ -213,6 +225,7 @@ export interface RootRouteChildren {
   DeskRoute: typeof DeskRoute
   GiftsRoute: typeof GiftsRoute
   HistoryRoute: typeof HistoryRoute
+  SummaryRoute: typeof SummaryRoute
   ToolsRoute: typeof ToolsRoute
   TransferRoute: typeof TransferRoute
   ApiArtifactRoute: typeof ApiArtifactRoute
@@ -260,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/history'
       preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/summary': {
+      id: '/summary'
+      path: '/summary'
+      fullPath: '/summary'
+      preLoaderRoute: typeof SummaryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tools': {
@@ -341,6 +361,7 @@ const rootRouteChildren: RootRouteChildren = {
   DeskRoute: DeskRoute,
   GiftsRoute: GiftsRoute,
   HistoryRoute: HistoryRoute,
+  SummaryRoute: SummaryRoute,
   ToolsRoute: ToolsRoute,
   TransferRoute: TransferRoute,
   ApiArtifactRoute: ApiArtifactRoute,
