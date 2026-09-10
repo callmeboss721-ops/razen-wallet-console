@@ -1,0 +1,271 @@
+export type McpTool = {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: "object";
+    properties: Record<string, { type: string; description?: string }>;
+    required?: string[];
+  };
+  annotations?: {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+  };
+};
+
+export const MCP_INSTRUCTIONS = `RAZEN TMNOne desk. SIM unless live+creds. PIN from env, never ask.
+
+WORKFLOWS:
+- Probe: tmn_bootstrap (setData→loginWithPin6→balance→history)
+- P2P: tmn_recipient (status=ปกติ) → tmn_transfer_p2p → tmn_p2p_status
+- PromptPay/Bank: skip recipient
+- After pay: remember(semantic, accountId) → razen_artifact_receipt
+
+CONSTRAINTS:
+- Dates YYYY-MM-DD Asia/Bangkok; start in, end exclusive; ≤50
+- MAS-401: tmn_login then retry once. Face-auth: wait webhook.`;
+
+export const MCP_KITS = {
+  probe: ["tmn_bootstrap", "tmn_balance", "tmn_history", "tmn_txinfo"],
+  pay: [
+    "tmn_recipient",
+    "tmn_transfer_p2p",
+    "tmn_transfer_promptpay",
+    "tmn_transfer_bank",
+    "tmn_p2p_status",
+    "tmn_voucher",
+  ],
+  memory: ["razen_memory_remember", "razen_memory_recall", "razen_memory_forget"],
+  slip: ["razen_artifact_receipt", "razen_artifact_desk"],
+} as const;
+
+const WRITE = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: false,
+} as const;
+const READ = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+} as const;
+
+export const MCP_TOOLS: McpTool[] = [
+  {
+    name: "tmn_bootstrap",
+    description:
+      "PHP apidoc sequence: setData + loginWithPin6 + getBalance + fetchTransactionHistory(yesterday, tomorrow)",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "tmn_login",
+    description: "loginWithPin6 — เปิดเซสชันกระเป๋า TrueMoney",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: WRITE,
+  },
+  {
+    name: "tmn_balance",
+    description: "getBalance — ยอดเงินปัจจุบัน",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: READ,
+  },
+  {
+    name: "tmn_recipient",
+    description: "getRecipientInfo — ค้นชื่อผู้รับจากเบอร์/วอลเล็ต",
+    inputSchema: {
+      type: "object",
+      properties: { msisdn: { type: "string", description: "เบอร์ 10 หลัก" } },
+      required: ["msisdn"],
+    },
+  },
+  {
+    name: "tmn_transfer_p2p",
+    description: "transferP2P — โอนวอลเล็ต",
+    inputSchema: {
+      type: "object",
+      properties: {
+        msisdn: { type: "string" },
+        amount: { type: "number" },
+        note: { type: "string" },
+      },
+      required: ["msisdn", "amount"],
+    },
+    annotations: WRITE,
+  },
+  {
+    name: "tmn_transfer_promptpay",
+    description: "transferQRPromptpay — โอนพร้อมเพย์",
+    inputSchema: {
+      type: "object",
+      properties: {
+        proxy: { type: "string" },
+        amount: { type: "number" },
+        note: { type: "string" },
+      },
+      required: ["proxy", "amount"],
+    },
+    annotations: WRITE,
+  },
+  {
+    name: "tmn_transfer_bank",
+    description: "transferBankAC — โอนบัญชีธนาคาร",
+    inputSchema: {
+      type: "object",
+      properties: {
+        bank: { type: "string", description: "รหัสธนาคาร เช่น SCB KTB KBANK" },
+        account: { type: "string" },
+        amount: { type: "number" },
+      },
+      required: ["bank", "account", "amount"],
+    },
+    annotations: WRITE,
+  },
+  {
+    name: "tmn_voucher",
+    description: "generateVoucher — สร้างซองอั่งเปา",
+    inputSchema: {
+      type: "object",
+      properties: {
+        amount: { type: "number" },
+        message: { type: "string" },
+      },
+      required: ["amount"],
+    },
+    annotations: WRITE,
+  },
+  {
+    name: "tmn_fees",
+    description: "getWalletFee — ค่าธรรมเนียมช่องทาง",
+    inputSchema: {
+      type: "object",
+      properties: { channel: { type: "string" } },
+      required: [],
+    },
+  },
+  {
+    name: "tmn_history",
+    description:
+      "fetchTransactionHistory(start inclusive YYYY-MM-DD, end exclusive, limit≤50, page)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        start: { type: "string" },
+        end: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "tmn_txinfo",
+    description: "fetchTransactionInfo(report_id)",
+    inputSchema: {
+      type: "object",
+      properties: { report_id: { type: "string" } },
+      required: ["report_id"],
+    },
+  },
+  {
+    name: "tmn_vouchers",
+    description: "fetchVoucherHistory()",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "tmn_p2p_status",
+    description: "getTransferP2PStatus(draft_transaction_id)",
+    inputSchema: {
+      type: "object",
+      properties: { draft_id: { type: "string" } },
+      required: ["draft_id"],
+    },
+  },
+  {
+    name: "tmn_amity",
+    description: "getAmityToken() — chat token for tmn.one/amity.html",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "tmn_payment_code",
+    description: "getPaymentCode — QR จ่ายร้านค้า",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "tmn_qr",
+    description: "fetchQRDetail — อ่านสลิป QR",
+    inputSchema: {
+      type: "object",
+      properties: { raw: { type: "string" } },
+      required: ["raw"],
+    },
+  },
+  {
+    name: "razen_status",
+    description: "สถานะคอนโซลและโหมด TMN",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  {
+    name: "razen_memory_remember",
+    description: "Store agent memory. kind=semantic|episodic|procedural. Semantic keys upsert per wallet.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        kind: { type: "string", description: "semantic | episodic | procedural" },
+        key: { type: "string" },
+        value: { type: "string" },
+        accountId: { type: "string", description: "Wallet id / msisdn — required for isolation" },
+        importance: { type: "string", description: "0-1, procedural defaults to 1" },
+      },
+      required: ["kind", "key", "value"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  },
+  {
+    name: "razen_memory_recall",
+    description: "Retrieve agent memory. Filters by accountId; ranks recency; top_k default 8.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        q: { type: "string" },
+        kind: { type: "string" },
+        accountId: { type: "string" },
+        limit: { type: "string", description: "max 20, default 8" },
+      },
+      required: [],
+    },
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+  {
+    name: "razen_memory_forget",
+    description: "Delete a memory by id or key",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+    annotations: { destructiveHint: true },
+  },
+  {
+    name: "razen_artifact_receipt",
+    description: "Build a self-contained HTML transfer receipt artifact",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ref: { type: "string" },
+        amount: { type: "string" },
+        counterpart: { type: "string" },
+        method: { type: "string" },
+        note: { type: "string" },
+      },
+      required: ["ref", "amount", "counterpart"],
+    },
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+  {
+    name: "razen_artifact_desk",
+    description: "Self-contained HTML operator runbook: setData → loginWithPin6 → getBalance → pay rails",
+    inputSchema: { type: "object", properties: {}, required: [] },
+    annotations: { readOnlyHint: true, idempotentHint: true },
+  },
+];

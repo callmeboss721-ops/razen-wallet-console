@@ -1,0 +1,298 @@
+import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ArrowDownLeft, ArrowUpRight, Clock3, Gift, History, Landmark, QrCode, Search, Send, Settings2, Store, Wallet } from "lucide-react";
+import { FlowChart } from "@/components/razen/flow-chart";
+import { BrandMark } from "@/components/razen/brand-mark";
+import { Glyph } from "@/components/razen/glyph";
+import { fadeUp, stagger, enterEase } from "@/components/razen/motion";
+import { baht } from "@/lib/razen/format";
+import { bankByCode } from "@/lib/razen/banks";
+import { useRazen } from "@/lib/razen/store";
+import type { Transaction } from "@/lib/razen/types";
+import { cn } from "@/lib/utils";
+
+const METHOD: Record<Transaction["method"], string> = {
+  p2p: "วอลเล็ต",
+  promptpay: "พร้อมเพย์",
+  bank: "ธนาคาร",
+  gift: "ซอง",
+};
+
+const STATUS: Record<Transaction["status"], { label: string; cls: string }> = {
+  completed: { label: "สำเร็จ", cls: "text-in" },
+  pending: { label: "รอส่ง", cls: "text-warn" },
+  processing: { label: "กำลังส่ง", cls: "text-cyan" },
+  failed: { label: "ไม่ผ่าน", cls: "text-danger" },
+};
+
+export function DeskDash() {
+  const accounts = useRazen((s) => s.accounts);
+  const activeId = useRazen((s) => s.activeAccountId);
+  const getBalance = useRazen((s) => s.balance);
+  const getStats = useRazen((s) => s.stats);
+  const getSeries = useRazen((s) => s.chartSeries);
+  const dailySpent = useRazen((s) => s.dailySpent);
+  const limit = useRazen((s) => s.settings.dailyLimit);
+  const txs = useRazen((s) => s.txs);
+  const setReceipt = useRazen((s) => s.setLastReceipt);
+  const [q, setQ] = useState("");
+
+  const balance = getBalance();
+  const stats = getStats();
+  const series = getSeries();
+  const acc = accounts.find((a) => a.id === activeId) ?? accounts[0];
+  const synced = acc?.walletBalance != null;
+  const spent = dailySpent();
+  const remain = Math.max(0, limit - spent);
+  const usedPct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
+
+  const recent = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return txs
+      .filter((t) => {
+        if (t.accountId !== activeId) return false;
+        if (!needle) return true;
+        return (
+          t.counterpart.toLowerCase().includes(needle) ||
+          t.ref.toLowerCase().includes(needle) ||
+          t.counterpartMeta.toLowerCase().includes(needle)
+        );
+      })
+      .slice(0, 6);
+  }, [txs, activeId, q]);
+
+  const reduce = useReducedMotion();
+
+  return (
+    <motion.div
+      className="stack-dense mx-auto max-w-6xl"
+      initial={reduce ? false : "hidden"}
+      animate="visible"
+      variants={stagger}
+    >
+      <motion.section className="tmn-card px-4 py-4 sm:px-7 sm:py-7" variants={fadeUp}>
+        <div className="flex items-center gap-3">
+          <img
+            src="/landing/hostess.webp"
+            alt=""
+            width={40}
+            height={40}
+            className="size-9 rounded-full object-cover object-top ring-1 ring-white/40 sm:size-10"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs opacity-80">สวัสดี</p>
+            <p className="truncate text-sm font-medium">{acc?.nickname || "ยังไม่เชื่อมกระเป๋า"}</p>
+          </div>
+          <BrandMark id="truemoney" alt="TrueMoney" className="size-8 rounded-full bg-white p-0.5 sm:size-9" />
+        </div>
+        <p className="mt-3 text-xs opacity-80">ยอดพร้อมโอน</p>
+        <p className="mt-0.5 font-sans text-3xl font-semibold leading-none tracking-tight tabular-nums sm:text-5xl">
+          {synced ? baht(balance) : "—"}
+        </p>
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs opacity-80">
+            <span>โควต้าวันนี้</span>
+            <span className="tabular-nums">
+              เหลือ {baht(remain)} · {usedPct}%
+            </span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/20">
+            <motion.div
+              className="h-full rounded-full bg-brand-fg"
+              initial={reduce ? false : { width: 0 }}
+              animate={{ width: `${usedPct}%` }}
+              transition={enterEase}
+            />
+          </div>
+        </div>
+      </motion.section>
+
+      <motion.div className="grid grid-cols-4 gap-2" variants={fadeUp}>
+        <DashAction to="/transfer" search={{ method: "p2p" }} icon={Send} label="โอน" primary />
+        <DashAction to="/transfer" search={{ method: "promptpay" }} icon={QrCode} label="สแกน" />
+        <DashAction to="/transfer" search={{ method: "bank" }} icon={Landmark} label="ธนาคาร" />
+        <DashAction to="/gifts" icon={Gift} label="ซอง" />
+        <DashAction to="/history" icon={History} label="ประวัติ" />
+        <DashAction to="/accounts" icon={Wallet} label="กระเป๋า" />
+        <DashAction to="/tools" icon={Store} label="จ่ายร้าน" />
+        <DashAction to="/tools" icon={Settings2} label="ตั้งค่า" />
+      </motion.div>
+
+      <motion.nav
+        className="overflow-hidden rounded-lg shadow-[var(--shadow-border)]"
+        aria-label="ราง TMNOne"
+        variants={fadeUp}
+      >
+        <div className="grid grid-cols-3 divide-x divide-brand/25">
+          <RailCell to="/transfer" search={{ method: "p2p" }} kicker="P2P" title="โอนวอลเล็ต" method="transferP2P" />
+          <RailCell to="/transfer" search={{ method: "promptpay" }} kicker="QR" title="พร้อมเพย์" method="transferQRPromptpay" />
+          <RailCell to="/transfer" search={{ method: "bank" }} kicker="BANK" title="ธนาคาร" method="transferBankAC" />
+        </div>
+      </motion.nav>
+
+      <motion.div className="grid grid-cols-3 gap-2" variants={fadeUp}>
+        <Stat k="รับเข้า" v={baht(stats.incoming)} tone="pos" />
+        <Stat k="จ่ายออก" v={baht(stats.outgoing)} />
+        <Stat k="ค้างส่ง" v={String(stats.pending)} pending />
+      </motion.div>
+
+      <motion.div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)]" variants={fadeUp}>
+        <section className="panel p-3 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Glyph icon={ArrowDownLeft} tone="teal" size="sm" />
+              <h2 className="text-base font-semibold">กระแส 7 วัน</h2>
+            </div>
+            <p className="text-xs text-muted">
+              เข้า {baht(stats.incoming)} · ออก {baht(stats.outgoing)}
+            </p>
+          </div>
+          <FlowChart data={series} />
+        </section>
+
+        <section className="panel flex flex-col p-3 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Glyph icon={Clock3} tone="gold" size="sm" />
+              <h2 className="text-base font-semibold">ล่าสุด</h2>
+            </div>
+            <Link to="/history" className="text-xs text-cyan">
+              ทั้งหมด
+            </Link>
+          </div>
+          <label className="mb-2 flex min-h-11 items-center gap-2 rounded-md px-3 shadow-[var(--shadow-border)]">
+            <Search className="size-4 text-subtle" aria-hidden />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="ค้นหา"
+              aria-label="ค้นหารายการ"
+              className="h-8 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-subtle md:text-sm"
+            />
+          </label>
+          <ul className="min-h-0 flex-1">
+            <AnimatePresence initial={false}>
+              {recent.length === 0 ? (
+                <li className="py-10 text-center text-sm text-muted">
+                  {synced ? "ยังไม่มีรายการ" : "ยังไม่เชื่อมกระเป๋า"}
+                </li>
+              ) : (
+                recent.map((tx) => <TxRow key={tx.id} tx={tx} onOpen={() => setReceipt(tx.id)} />)
+              )}
+            </AnimatePresence>
+          </ul>
+        </section>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function RailCell({
+  to,
+  search,
+  kicker,
+  title,
+  method,
+}: {
+  to: "/transfer";
+  search: { method: "p2p" | "promptpay" | "bank" };
+  kicker: string;
+  title: string;
+  method: string;
+}) {
+  return (
+    <Link
+      to={to}
+      search={search}
+      className="min-h-12 bg-surface px-2 py-2 transition-colors hover:bg-brand/8 sm:px-3 sm:py-2.5"
+    >
+      <p className="kicker">{kicker}</p>
+      <p className="mt-0.5 text-xs font-medium sm:text-sm">{title}</p>
+      <p className="mt-0.5 truncate font-mono text-[10px] text-muted">{method}</p>
+    </Link>
+  );
+}
+
+function DashAction({
+  to,
+  search,
+  icon: Icon,
+  label,
+  primary,
+}: {
+  to: "/transfer" | "/gifts" | "/tools" | "/history" | "/accounts";
+  search?: { method: "p2p" | "promptpay" | "bank" };
+  icon: typeof Send;
+  label: string;
+  primary?: boolean;
+}) {
+  return (
+    <motion.div variants={fadeUp} whileTap={{ scale: 0.96 }}>
+      <Link
+        to={to}
+        search={search}
+        className={cn(
+          "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium transition-opacity duration-150 hover:opacity-90 sm:min-h-16 sm:text-xs",
+          primary
+            ? "bg-[linear-gradient(180deg,#f0d78a_0%,#d4af57_48%,#b8892a_100%)] text-brand-fg shadow-[var(--shadow-gold)]"
+            : "panel text-muted",
+        )}
+      >
+        <Icon className="size-5" strokeWidth={1.75} />
+        {label}
+      </Link>
+    </motion.div>
+  );
+}
+
+function Stat({ k, v, tone, pending }: { k: string; v: string; tone?: "pos"; pending?: boolean }) {
+  const icon = tone === "pos" ? ArrowDownLeft : pending ? Clock3 : ArrowUpRight;
+  const gTone = tone === "pos" ? "in" : pending ? "warn" : "gold";
+  return (
+    <div className="panel flex min-w-0 items-center gap-1.5 px-2 py-2 sm:gap-3 sm:px-4 sm:py-4">
+      <span className="hidden sm:inline-flex">
+        <Glyph icon={icon} tone={gTone} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] tracking-wide text-subtle sm:text-[11px]">{k}</p>
+        <p className={cn("mt-0.5 truncate font-sans text-sm font-semibold tabular-nums sm:text-xl", tone === "pos" && "text-in")}>{v}</p>
+      </div>
+    </div>
+  );
+}
+
+function TxRow({ tx, onOpen }: { tx: Transaction; onOpen: () => void }) {
+  const st = STATUS[tx.status];
+  const bank = bankByCode(tx.bankCode);
+  const mark =
+    tx.method === "promptpay" ? "promptpay" : tx.method === "p2p" || tx.method === "gift" ? "truemoney" : bank?.abbr ?? "KBANK";
+  const inn = tx.direction === "in";
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.15 }}
+      className="border-t border-white/10 first:border-t-0"
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-h-11 w-full cursor-pointer items-center gap-3 py-3 text-left transition-colors duration-200 hover:bg-white/5"
+      >
+        <BrandMark id={mark} alt="" className="size-8 rounded-md bg-white p-0.5" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm">{tx.counterpart}</p>
+          <p className="text-[11px] text-subtle">{METHOD[tx.method]}</p>
+        </div>
+        <span className={cn("hidden text-[11px] lg:inline", st.cls)}>{st.label}</span>
+        <p className={cn("text-sm font-semibold tabular-nums", inn ? "text-in" : "text-brand")}>
+          {inn ? "+" : "−"}
+          {baht(inn ? tx.amount : tx.amount + tx.fee)}
+        </p>
+      </button>
+    </motion.li>
+  );
+}

@@ -1,0 +1,424 @@
+import { useEffect, useMemo, useState, useId } from "react";
+import { BANKS, HOME_BANK, bankByCode, bankFee } from "@/lib/razen/banks";
+import {
+  baht,
+  formatPhone,
+  isBankAccount,
+  isThaiMobile,
+  isThaiNationalId,
+  maskPhone,
+} from "@/lib/razen/format";
+import { useRazen } from "@/lib/razen/store";
+import { tmnConfigured } from "@/lib/tmnone/creds";
+import { usesRecipientInfo } from "@/lib/tmnone/apidoc";
+import { recallLocal } from "@/lib/memory/client";
+import { parsePayee } from "@/lib/memory/payee";
+import type { TransferMethod } from "@/lib/razen/types";
+import type { RecipientInfo } from "@/lib/tmn/client";
+import { BrandMark } from "@/components/razen/brand-mark";
+import { PromptPayScan } from "@/components/razen/promptpay-scan";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Check, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift"> }) {
+  const contacts = useRazen((s) => s.contacts);
+  const getBalance = useRazen((s) => s.balance);
+  const getDaily = useRazen((s) => s.dailySpent);
+  const balance = getBalance();
+  const daily = getDaily();
+  const limit = useRazen((s) => s.settings.dailyLimit);
+  const lookup = useRazen((s) => s.lookupRecipient);
+  const transfer = useRazen((s) => s.transferViaApi);
+  const accounts = useRazen((s) => s.accounts);
+  const activeId = useRazen((s) => s.activeAccountId);
+  const txs = useRazen((s) => s.txs);
+
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [phone, setPhone] = useState("");
+  const [ppValue, setPpValue] = useState("");
+  const [bankCode, setBankCode] = useState(HOME_BANK);
+  const [accNo, setAccNo] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [rec, setRec] = useState<RecipientInfo | null>(null);
+  const [memRecents, setMemRecents] = useState<{ name: string; value: string }[]>([]);
+
+  const n = Number(amount.replace(/,/g, ""));
+  const fee = method === "bank" ? bankFee(bankCode) : 0;
+  const total = (Number.isFinite(n) ? n : 0) + fee;
+  const remain = Math.max(0, limit - daily);
+
+  const recents = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { name: string; value: string }[] = [];
+    const push = (name: string, value: string) => {
+      if (!value || seen.has(value)) return;
+      seen.add(value);
+      out.push({ name, value });
+    };
+    for (const row of memRecents) push(row.name, row.value);
+    for (const t of txs) {
+      if (t.accountId !== activeId || t.direction !== "out" || t.method !== method) continue;
+      push(t.counterpart, t.counterpartMeta.replace(/\D/g, ""));
+      if (out.length >= 6) break;
+    }
+    return out.slice(0, 6);
+  }, [txs, activeId, method, memRecents]);
+
+  useEffect(() => {
+    let live = true;
+    void recallLocal(method, activeId, "semantic").then((items) => {
+      if (!live) return;
+      const out: { name: string; value: string }[] = [];
+      for (const m of items) {
+        const value = parsePayee(m.key, method);
+        if (value) out.push({ name: m.value, value });
+      }
+      setMemRecents(out);
+    });
+    return () => {
+      live = false;
+    };
+  }, [activeId, method]);
+
+  const preview = useMemo(() => {
+    if (method === "p2p") {
+      const c = contacts.find((x) => x.phone === phone.replace(/\D/g, ""));
+      return {
+        counterpart: rec?.full_name_th || c?.name || (phone ? formatPhone(phone) : ""),
+        meta: phone ? maskPhone(phone) : "",
+      };
+    }
+    if (method === "promptpay") {
+      return {
+        counterpart: rec?.full_name_th || (ppValue ? `พร้อมเพย์ ${ppValue}` : ""),
+        meta: ppValue.replace(/\D/g, ""),
+      };
+    }
+    const bank = bankByCode(bankCode);
+    return {
+      counterpart: rec?.full_name_th || (accNo ? `บัญชี ***${accNo.slice(-4)}` : ""),
+      meta: accNo.replace(/\D/g, ""),
+    };
+  }, [method, contacts, phone, ppValue, bankCode, accNo, rec]);
+
+  function validate(): string | null {
+    const acc = accounts.find((a) => a.id === activeId);
+    if (!acc || !tmnConfigured(acc.creds)) return "ยังไม่เชื่อมกระเป๋า";
+    if (acc.walletBalance == null) return "ซิงก์ยอดก่อนโอน";
+    if (!Number.isFinite(n) || n <= 0) return "ใส่จำนวน";
+    if (method === "p2p" && !isThaiMobile(phone)) return "เบอร์ไม่ถูกต้อง";
+    if (method === "promptpay") {
+      const d = ppValue.replace(/\D/g, "");
+      if (!(isThaiMobile(d) || isThaiNationalId(d))) return "หมายเลขพร้อมเพย์ไม่ถูกต้อง";
+    }
+    if (method === "bank" && !isBankAccount(accNo)) return "เลขบัญชีไม่ถูกต้อง";
+    return null;
+  }
+
+  async function onSubmit() {
+    setError("");
+    const v = validate();
+    if (v) {
+      setError(v);
+      return;
+    }
+    setBusy(true);
+    try {
+      if (usesRecipientInfo(method)) {
+        const info = await lookup(phone.replace(/\D/g, ""));
+        if (!info.ok) {
+          setError(info.error);
+          return;
+        }
+        setRec(info.data);
+      } else if (method === "promptpay") {
+        const d = ppValue.replace(/\D/g, "");
+        setRec({
+          payee_wallet_id: d,
+          full_name_th: `พร้อมเพย์ ${d}`,
+          full_name_en: d,
+          status: "ปกติ",
+          masked: d.length >= 4 ? `***${d.slice(-4)}` : d,
+        });
+      } else {
+        setRec({
+          payee_wallet_id: accNo,
+          full_name_th: `บัญชี ${bankByCode(bankCode)?.short ?? bankCode}`,
+          full_name_en: bankByCode(bankCode)?.abbr ?? bankCode,
+          status: "ปกติ",
+          masked: `***${accNo.replace(/\D/g, "").slice(-4)}`,
+        });
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm() {
+    setBusy(true);
+    setError("");
+    const res = await transfer({
+      method,
+      amount: n,
+      counterpart: preview.counterpart,
+      counterpartMeta: preview.meta,
+      note,
+      bankCode: method === "bank" ? bankCode : undefined,
+      payee:
+        method === "p2p"
+          ? rec?.payee_wallet_id || phone.replace(/\D/g, "")
+          : method === "promptpay"
+            ? ppValue.replace(/\D/g, "")
+            : accNo.replace(/\D/g, ""),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setAmount("");
+    setNote("");
+    setPhone("");
+    setPpValue("");
+    setAccNo("");
+    setRec(null);
+  }
+
+  const heading =
+    method === "p2p" ? "ยืนยันโอน P2P" : method === "promptpay" ? "ยืนยันโอนพร้อมเพย์" : "ยืนยันโอนธนาคาร";
+
+  return (
+    <div className="stack-dense">
+      {method === "p2p" && (
+        <>
+          <Field label="เบอร์ปลายทาง">
+            <Input
+              inputMode="tel"
+              maxLength={10}
+              placeholder="08XXXXXXXX"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </Field>
+          {recents.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {recents.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setPhone(c.value)}
+                  className="min-h-11 rounded-full border border-line px-3 text-xs text-muted hover:border-brand/50 hover:text-fg"
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {contacts.length > 0 && recents.length === 0 && (
+            <div className="flex flex-wrap gap-2">
+              {contacts.slice(0, 4).map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setPhone(c.phone)}
+                  className="min-h-11 rounded-full border border-line px-3 text-xs text-muted transition-colors duration-200 hover:border-cyan/40 hover:text-fg"
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {method === "promptpay" && (
+        <Field label="หมายเลขพร้อมเพย์">
+          <div className="flex items-center gap-2">
+            <BrandMark id="promptpay" alt="PromptPay" className="size-8" />
+            <Input
+              inputMode="tel"
+              placeholder="เบอร์มือถือ / เลขบัตรประชาชน"
+              value={ppValue}
+              onChange={(e) => setPpValue(e.target.value)}
+              className="flex-1"
+            />
+            <PromptPayScan onHit={(v) => setPpValue(v)} />
+          </div>
+        </Field>
+      )}
+      {method === "promptpay" && recents.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {recents.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => setPpValue(c.value)}
+              className="min-h-11 rounded-full border border-line px-3 text-xs text-muted hover:border-brand/50 hover:text-fg"
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {method === "bank" && (
+        <>
+          <Field label="เลือกธนาคาร">
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+              {BANKS.map((b) => (
+                <button
+                  key={b.abbr}
+                  type="button"
+                  title={b.name}
+                  aria-pressed={bankCode === b.abbr}
+                  aria-label={b.name}
+                  onClick={() => setBankCode(b.abbr)}
+                  className={cn(
+                    "flex min-h-11 cursor-pointer flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] font-medium transition-colors duration-200",
+                    bankCode === b.abbr
+                      ? "border-cyan text-fg"
+                      : "border-line text-muted hover:border-cyan/30",
+                  )}
+                >
+                  <span className="flex size-9 items-center justify-center rounded-md bg-white/95 p-0.5">
+                    <BrandMark id={b.abbr} alt={b.name} className="size-7" />
+                  </span>
+                  {b.abbr}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="เลขบัญชี">
+            <Input
+              inputMode="numeric"
+              placeholder="XXX-X-XXXXX-X"
+              value={accNo}
+              onChange={(e) => setAccNo(e.target.value)}
+            />
+          </Field>
+        </>
+      )}
+
+      <Field label="จำนวน (฿)">
+        <Input
+          inputMode="decimal"
+          placeholder="0.00"
+          className="h-14 text-2xl font-semibold tabular-nums"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+        <div className="mt-2 flex gap-2">
+          {[100, 500, 1000, 5000].map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setAmount(String(v))}
+              className="min-h-11 flex-1 rounded-lg border border-line text-xs tabular-nums text-muted hover:border-brand/50 hover:text-fg"
+            >
+              {v.toLocaleString("th-TH")}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      {method === "p2p" && (
+        <Field label="ข้อความ">
+          <Input
+            placeholder="ข้อความถึงผู้รับ (ไม่บังคับ)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </Field>
+      )}
+
+      <div className="flex justify-between font-mono text-[11px] text-subtle">
+        <span>ใช้ได้ {baht(balance)}</span>
+        <span>
+          คงเหลือโควต้าวันนี้ {baht(remain)}
+          {fee > 0 ? ` · ค่าธรรมเนียม ${baht(fee)}` : ""}
+        </span>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+
+      <Button
+        className="w-full"
+        disabled={busy}
+        aria-busy={busy}
+        onClick={() => void onSubmit()}
+      >
+        {busy ? "กำลังตรวจ…" : "ต่อไป"}
+        <ArrowRight />
+      </Button>
+
+      {rec && (
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-bg/40 p-3 backdrop-blur-md sm:items-center">
+          <div
+            className="glass-frost w-full max-w-md rounded-2xl p-5"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-title"
+          >
+            <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-line" />
+            <p id="confirm-title" className="text-center text-xs tracking-[0.18em] text-brand uppercase">
+              จ่ายเงิน
+            </p>
+            <div className="mt-4 text-center">
+              <div className="mx-auto mb-2 flex size-14 items-center justify-center rounded-full bg-elevated text-lg text-muted">
+                {rec.full_name_th.slice(0, 1)}
+              </div>
+              <p className="text-lg font-semibold">{rec.full_name_th}</p>
+              <p className="text-xs text-muted">{rec.masked}</p>
+              <p className="mt-4 font-sans text-4xl font-semibold tabular-nums">{baht(n)}</p>
+            </div>
+            <dl className="mt-4 space-y-2 text-sm">
+              <Row k="ช่องทาง" v={heading.replace("ยืนยันโอน", "")} />
+              {fee > 0 && <Row k="ค่าธรรมเนียม" v={baht(fee)} />}
+              <Row k="รวมหัก" v={baht(total)} strong />
+              <Row k="สถานะผู้รับ" v={rec.status} ok={rec.status === "ปกติ"} />
+            </dl>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button disabled={busy} aria-busy={busy} onClick={() => void confirm()}>
+                <Check />
+                {busy ? "กำลังโอน…" : `ยืนยันจ่าย ${baht(n)}`}
+              </Button>
+              <Button variant="secondary" onClick={() => setRec(null)}>
+                <X />
+                ยกเลิก
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <div className="space-y-1.5" role="group" aria-labelledby={id}>
+      <p id={id} className="text-xs font-medium text-muted">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function Row({ k, v, strong, ok }: { k: string; v: string; strong?: boolean; ok?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-subtle">{k}</dt>
+      <dd className={cn("tabular-nums", strong && "text-brand", ok && "text-in")}>{v}</dd>
+    </div>
+  );
+}
