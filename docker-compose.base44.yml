@@ -9,6 +9,8 @@ services:
       - ./:/app
     ports:
       - "3000:8080"
+    env_file:
+      - /run/base44/app.env
     environment:
       # Auth off = the project's own shipped default. The federated sign-in
       # broker (auth.grok.me / *.grok-sandbox.com) is Grok-platform-specific and
@@ -19,6 +21,12 @@ services:
       # Vite >= 6.1 appends this to its dev-server allowedHosts, letting the
       # preview proxy's external hostname through. Set by the platform.
       - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+      # Push-to-deploy /api/ship pipeline — public Vercel/GitHub identifiers
+      # (already committed in .env.example, not secrets). The matching
+      # VERCEL_TOKEN and optional SHIP_SECRET come from /run/base44/app.env.
+      - VERCEL_ORG_ID=team_w4RW1dNJ1JPWzKmbAoSRryum
+      - VERCEL_PROJECT_ID=prj_f3dNeWUPbD5pSr9NHdyolUp8IXtw
+      - GITHUB_REPO_ID=1353981322
     command: sh -c "npm install && npm run dev"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
