@@ -1,0 +1,67 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "RAZEN_MCP_TOKEN",
+      "description": "Bearer token guarding the MCP endpoint (POST /api/mcp). Optional — when unset the endpoint is open. Generate any random string.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_KEY_ID",
+      "description": "TrueMoney/TMNOne live API key id. Optional — only needed for live transfers; without it the app runs in simulation mode.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_MSISDN",
+      "description": "TrueMoney operator phone number (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_LOGIN_TOKEN",
+      "description": "TrueMoney login token (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_ID",
+      "description": "TrueMoney session/device id (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_DEVICE_ID",
+      "description": "TrueMoney device id (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_PIN",
+      "description": "TrueMoney operator PIN (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_PROXY_IP",
+      "description": "Proxy IP for TrueMoney API (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_PROXY_USERNAME",
+      "description": "Proxy username for TrueMoney API (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_PROXY_PASSWORD",
+      "description": "Proxy password / API token for TrueMoney API (live mode). Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SHIP_SECRET",
+      "description": "Shared secret guarding the /api/ship deploy webhook. Optional.",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "VERCEL_TOKEN",
+      "description": "Vercel deploy token for the /api/ship CD pipeline. Optional.",
+      "requiredAtBoot": false
+    }
+  ]
+}
