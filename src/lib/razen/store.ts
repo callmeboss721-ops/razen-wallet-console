@@ -30,6 +30,7 @@ import {
   type QrSlip,
   type RecipientInfo,
 } from "@/lib/tmn/client";
+import { getEnvWalletConfig } from "@/lib/tmnone/env-creds.server";
 
 const SETTLE_AFTER = 2_400;
 const MIN_TX = 1;
@@ -135,6 +136,7 @@ type RazenState = {
   ) => Promise<{ ok: true; count: number } | { ok: false; error: string }>;
   refreshBalance: () => Promise<{ ok: true; balance: number } | { ok: false; error: string }>;
   syncWallet: () => Promise<void>;
+  autoConnectFromEnv: () => Promise<boolean>;
   flashMascot: () => void;
 };
 
@@ -926,6 +928,48 @@ export const useRazen = create<RazenState>()(
         const start = ymd(-30);
         const end = ymd(0);
         await get().pullHistory(start, end);
+      },
+
+      autoConnectFromEnv: async () => {
+        const cfg = await getEnvWalletConfig();
+        if (!cfg.configured) return false;
+        const s = get();
+        const acc = s.accounts.find((a) => a.id === s.activeAccountId) ?? s.accounts[0];
+        if (!acc) return false;
+        // Already connected with real creds — just sync.
+        if (tmnConfigured(acc.creds)) {
+          void get().syncWallet();
+          return true;
+        }
+        const msisdn = cfg.msisdn.replace(/\D/g, "");
+        set({
+          accounts: s.accounts.map((a) =>
+            a.id === acc.id
+              ? {
+                  ...a,
+                  number: msisdn,
+                  masked: maskPhone(msisdn),
+                  creds: {
+                    ...a.creds,
+                    tmn_key_id: cfg.tmn_key_id,
+                    msisdn,
+                    login_token: cfg.login_token,
+                    tmn_id: cfg.tmn_id,
+                    device_id: cfg.device_id || a.creds.device_id,
+                  },
+                }
+              : a,
+          ),
+          pin: /^\d{6}$/.test(cfg.pin) ? cfg.pin : s.pin,
+          settings: {
+            ...s.settings,
+            mode: "live" as const,
+            apiBase: cfg.proxy_ip || s.settings.apiBase,
+            apiToken: cfg.proxy_password || s.settings.apiToken,
+          },
+        });
+        void get().syncWallet();
+        return true;
       },
 
       pullHistory: async (start, end) => {

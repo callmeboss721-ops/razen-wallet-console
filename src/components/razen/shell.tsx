@@ -51,6 +51,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const mark = useRazen((s) => s.markHydrated);
   const tick = useRazen((s) => s.tickPending);
   const syncWallet = useRazen((s) => s.syncWallet);
+  const autoConnectFromEnv = useRazen((s) => s.autoConnectFromEnv);
   const mode = useRazen((s) => s.settings.mode);
   const accounts = useRazen((s) => s.accounts);
   const activeId = useRazen((s) => s.activeAccountId);
@@ -66,7 +67,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
     }
     mark();
     tick();
-    void syncWallet();
+    void autoConnectFromEnv().then((connected) => {
+      if (!connected) void syncWallet();
+    });
     setMounted(true);
     const id = window.setInterval(() => tick(), 2500);
     const c = window.setInterval(() => {
@@ -89,7 +92,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       window.clearInterval(id);
       window.clearInterval(c);
     };
-  }, [mark, tick, syncWallet]);
+  }, [mark, tick, syncWallet, autoConnectFromEnv]);
 
   const heading = TITLE[pathname] ?? TITLE["/desk"];
 
