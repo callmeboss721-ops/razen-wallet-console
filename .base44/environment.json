@@ -1,0 +1,47 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "RAZEN_MCP_TOKEN",
+      "description": "Token for the Razen MCP integration (optional — enables MCP tool calls)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_KEY_ID",
+      "description": "TrueMoney API key ID (optional — enables TMN transfers)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_MSISDN",
+      "description": "TrueMoney phone number (optional — enables TMN transfers)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_LOGIN_TOKEN",
+      "description": "TrueMoney login token (optional — enables TMN transfers)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "TMN_PIN",
+      "description": "TrueMoney PIN (optional — enables TMN transfers)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SHIP_SECRET",
+      "description": "Secret for the ship/deploy integration (optional)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "VERCEL_TOKEN",
+      "description": "Vercel deploy token (optional — enables one-click deploy to Vercel)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "Github_token",
+      "description": "GitHub token for the ship/deploy integration (optional)",
+      "requiredAtBoot": false
+    }
+  ]
+}
