@@ -6,6 +6,12 @@ import { TxRow } from "@/components/razen/tx-row";
 import { dayLabel } from "@/lib/razen/format";
 import { ymd } from "@/lib/tmnone/dates";
 import { useRazen } from "@/lib/razen/store";
+import {
+  PeriodFilter,
+  detectPreset,
+  presetRange,
+  type PeriodPreset,
+} from "@/components/razen/period-filter";
 
 export const Route = createFileRoute("/history")({ component: HistoryPage });
 
@@ -22,6 +28,16 @@ function HistoryPage() {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState({ start, end, q: "" });
+
+  const preset = detectPreset(start, end);
+
+  function applyPreset(p: PeriodPreset) {
+    if (p === "custom") return; // custom = use date pickers
+    const { start: s, end: e } = presetRange(p);
+    setStart(s);
+    setEnd(e);
+    setApplied((prev) => ({ ...prev, start: s, end: e }));
+  }
 
   const rows = useMemo(() => {
     const from = new Date(applied.start).setHours(0, 0, 0, 0);
@@ -61,6 +77,7 @@ function HistoryPage() {
 
   return (
     <div className="stack-dense mx-auto max-w-6xl">
+      <PeriodFilter preset={preset} onPreset={applyPreset} rows={rows} />
       <div className="dense-toolbar">
         <label className="dense-cell" style={{ flex: "1 1 120px" }}>
           <span className="k">ตั้งแต่</span>
