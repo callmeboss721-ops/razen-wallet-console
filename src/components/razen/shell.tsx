@@ -18,6 +18,7 @@ import { NoticeBell } from "@/components/razen/notice-bell";
 import { ReceiptSheet } from "@/components/razen/receipt-sheet";
 import { SyncOverlay } from "@/components/razen/sync-overlay";
 import { useRazen } from "@/lib/razen/store";
+import { unlockAudio, playSound } from "@/lib/razen/audio";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -82,13 +83,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
         second: "2-digit",
       }),
     );
+    const unlock = () => {
+      unlockAudio();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
     return () => {
       window.clearInterval(id);
       window.clearInterval(c);
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
   }, [mark, tick, syncWallet]);
 
   const heading = TITLE[pathname] ?? TITLE["/desk"];
+
+  useEffect(() => {
+    if (mounted) playSound("whoosh");
+  }, [pathname, mounted]);
 
   if (pathname === "/") {
     return <>{children}</>;
@@ -118,6 +132,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 to={item.to}
                 aria-current={active ? "page" : undefined}
+                onClick={() => playSound("tap")}
                 className={cn(
                   "flex min-h-11 items-center gap-2.5 rounded-xl px-2 text-sm transition-colors duration-200",
                   active ? "bg-brand/12 text-brand" : "text-muted hover:bg-white/5 hover:text-fg",
@@ -158,7 +173,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-1 sm:gap-3">
             <NoticeBell />
             <span className="hidden items-center gap-1.5 rounded-full bg-elevated px-2.5 py-1 text-[11px] font-medium text-brand sm:inline-flex">
-              <i className="size-1.5 rounded-full bg-brand" />
+              <i className="size-1.5 rounded-full bg-brand pulse-ring" />
               {mode === "live" ? "LIVE" : "SIM"}
             </span>
             <div className="font-mono text-[11px] tabular-nums text-subtle">{clock}</div>
@@ -192,6 +207,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 to={item.to}
                 aria-current={active ? "page" : undefined}
+                onClick={() => playSound("tap")}
                 className={cn(
                   "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] transition-colors duration-200",
                   active ? "text-brand" : "text-muted",
@@ -227,11 +243,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
 function SkeletonDash() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <div className="panel-hero h-40" />
-      <div className="stat-strip">
+      <div className="shimmer h-40 rounded-[var(--radius-xl)]" />
+      <div className="grid grid-cols-4 gap-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="stat-cell h-20" />
+          <div key={i} className="shimmer h-20 rounded-[var(--radius-lg)]" />
         ))}
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)]">
+        <div className="shimmer h-72 rounded-[var(--radius-lg)]" />
+        <div className="shimmer h-72 rounded-[var(--radius-lg)]" />
       </div>
     </div>
   );

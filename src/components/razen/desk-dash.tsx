@@ -6,6 +6,7 @@ import { FlowChart } from "@/components/razen/flow-chart";
 import { BrandMark } from "@/components/razen/brand-mark";
 import { Glyph } from "@/components/razen/glyph";
 import { fadeUp, stagger, enterEase } from "@/components/razen/motion";
+import { playSound } from "@/lib/razen/audio";
 import { baht } from "@/lib/razen/format";
 import { bankByCode } from "@/lib/razen/banks";
 import { useRazen } from "@/lib/razen/store";
@@ -71,7 +72,7 @@ export function DeskDash() {
       animate="visible"
       variants={stagger}
     >
-      <motion.section className="tmn-card px-4 py-4 sm:px-7 sm:py-7" variants={fadeUp}>
+      <motion.section className="tmn-card gradient-border px-4 py-4 sm:px-7 sm:py-7" variants={fadeUp}>
         <div className="flex items-center gap-3">
           <img
             src="/landing/hostess.webp"
@@ -120,7 +121,7 @@ export function DeskDash() {
       </motion.div>
 
       <motion.nav
-        className="overflow-hidden rounded-lg shadow-[var(--shadow-border)]"
+        className="panel panel-hover overflow-hidden rounded-lg"
         aria-label="ราง TMNOne"
         variants={fadeUp}
       >
@@ -138,11 +139,11 @@ export function DeskDash() {
       </motion.div>
 
       <motion.div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)]" variants={fadeUp}>
-        <section className="panel p-3 sm:p-5">
+        <section className="panel panel-hover p-3 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Glyph icon={ArrowDownLeft} tone="teal" size="sm" />
-              <h2 className="text-base font-semibold">กระแส 7 วัน</h2>
+              <h2 className="text-base font-semibold text-gradient-cyan">กระแส 7 วัน</h2>
             </div>
             <p className="text-xs text-muted">
               เข้า {baht(stats.incoming)} · ออก {baht(stats.outgoing)}
@@ -151,11 +152,11 @@ export function DeskDash() {
           <FlowChart data={series} />
         </section>
 
-        <section className="panel flex flex-col p-3 sm:p-5">
+        <section className="panel panel-hover flex flex-col p-3 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Glyph icon={Clock3} tone="gold" size="sm" />
-              <h2 className="text-base font-semibold">ล่าสุด</h2>
+              <h2 className="text-base font-semibold text-gradient-gold">ล่าสุด</h2>
             </div>
             <Link to="/history" className="text-xs text-cyan">
               ทั้งหมด
@@ -205,7 +206,8 @@ function RailCell({
     <Link
       to={to}
       search={search}
-      className="min-h-12 bg-surface px-2 py-2 transition-colors hover:bg-brand/8 sm:px-3 sm:py-2.5"
+      onClick={() => playSound("tap")}
+      className="min-h-12 bg-surface px-2 py-2 transition-all hover:bg-brand/8 hover:scale-[1.02] sm:px-3 sm:py-2.5"
     >
       <p className="kicker">{kicker}</p>
       <p className="mt-0.5 text-xs font-medium sm:text-sm">{title}</p>
@@ -232,11 +234,12 @@ function DashAction({
       <Link
         to={to}
         search={search}
+        onClick={() => playSound("tap")}
         className={cn(
-          "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium transition-opacity duration-150 hover:opacity-90 sm:min-h-16 sm:text-xs",
+          "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium transition-all duration-150 hover:opacity-90 active:scale-95 sm:min-h-16 sm:text-xs",
           primary
             ? "bg-[linear-gradient(180deg,#f0d78a_0%,#d4af57_48%,#b8892a_100%)] text-brand-fg shadow-[var(--shadow-gold)]"
-            : "panel text-muted",
+            : "panel panel-hover text-muted",
         )}
       >
         <Icon className="size-5" strokeWidth={1.75} />
@@ -250,7 +253,7 @@ function Stat({ k, v, tone, pending }: { k: string; v: string; tone?: "pos"; pen
   const icon = tone === "pos" ? ArrowDownLeft : pending ? Clock3 : ArrowUpRight;
   const gTone = tone === "pos" ? "in" : pending ? "warn" : "gold";
   return (
-    <div className="panel flex min-w-0 items-center gap-1.5 px-2 py-2 sm:gap-3 sm:px-4 sm:py-4">
+    <div className="panel panel-hover flex min-w-0 items-center gap-1.5 px-2 py-2 sm:gap-3 sm:px-4 sm:py-4">
       <span className="hidden sm:inline-flex">
         <Glyph icon={icon} tone={gTone} />
       </span>
@@ -279,8 +282,8 @@ function TxRow({ tx, onOpen }: { tx: Transaction; onOpen: () => void }) {
     >
       <button
         type="button"
-        onClick={onOpen}
-        className="flex min-h-11 w-full cursor-pointer items-center gap-3 py-3 text-left transition-colors duration-200 hover:bg-white/5"
+        onClick={() => { playSound("tap"); onOpen(); }}
+        className="flex min-h-11 w-full cursor-pointer items-center gap-3 py-3 text-left transition-colors duration-200 hover:bg-white/5 active:scale-[0.99]"
       >
         <BrandMark id={mark} alt="" className="size-8 rounded-md bg-white p-0.5" />
         <div className="min-w-0 flex-1">

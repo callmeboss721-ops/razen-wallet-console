@@ -5,6 +5,7 @@ import { baht } from "@/lib/razen/format";
 import { useRazen } from "@/lib/razen/store";
 import type { TransferMethod } from "@/lib/razen/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { playSound } from "@/lib/razen/audio";
 
 type Method = Exclude<TransferMethod, "gift">;
 
@@ -26,7 +27,7 @@ function TransferPage() {
 
   return (
     <div className="stack-dense mx-auto max-w-xl">
-      <div className="tmn-card flex items-center justify-between gap-4 px-5 py-5">
+      <div className="tmn-card gradient-border flex items-center justify-between gap-4 px-5 py-5">
         <div className="flex items-center gap-3">
           <BrandMark id="truemoney" alt="TrueMoney" className="size-10 rounded-full bg-white p-0.5" />
           <div>
@@ -39,9 +40,10 @@ function TransferPage() {
 
       <Tabs
         value={method}
-        onValueChange={(v) =>
-          navigate({ to: "/transfer", search: { method: v as Method } })
-        }
+        onValueChange={(v) => {
+          playSound("tap");
+          navigate({ to: "/transfer", search: { method: v as Method } });
+        }}
       >
         <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl p-1">
           <TabsTrigger value="p2p" className="h-11 gap-1.5 rounded-lg">

@@ -20,6 +20,7 @@ import { PromptPayScan } from "@/components/razen/promptpay-scan";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { playSound } from "@/lib/razen/audio";
 import { cn } from "@/lib/utils";
 
 export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift"> }) {
@@ -124,8 +125,10 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
     const v = validate();
     if (v) {
       setError(v);
+      playSound("error");
       return;
     }
+    playSound("confirm");
     setBusy(true);
     try {
       if (usesRecipientInfo(method)) {
@@ -178,8 +181,10 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
     setBusy(false);
     if (!res.ok) {
       setError(res.error);
+      playSound("error");
       return;
     }
+    playSound("success");
     setAmount("");
     setNote("");
     setPhone("");
@@ -210,8 +215,8 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
                 <button
                   key={c.value}
                   type="button"
-                  onClick={() => setPhone(c.value)}
-                  className="min-h-11 rounded-full border border-line px-3 text-xs text-muted hover:border-brand/50 hover:text-fg"
+                  onClick={() => { playSound("tick"); setPhone(c.value); }}
+                  className="min-h-11 rounded-full border border-line px-3 text-xs text-muted transition-all hover:border-brand/50 hover:text-fg active:scale-95"
                 >
                   {c.name}
                 </button>
@@ -224,8 +229,8 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setPhone(c.phone)}
-                  className="min-h-11 rounded-full border border-line px-3 text-xs text-muted transition-colors duration-200 hover:border-cyan/40 hover:text-fg"
+                  onClick={() => { playSound("tick"); setPhone(c.phone); }}
+                  className="min-h-11 rounded-full border border-line px-3 text-xs text-muted transition-all duration-200 hover:border-cyan/40 hover:text-fg active:scale-95"
                 >
                   {c.name}
                 </button>
@@ -256,8 +261,8 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
             <button
               key={c.value}
               type="button"
-              onClick={() => setPpValue(c.value)}
-              className="min-h-11 rounded-full border border-line px-3 text-xs text-muted hover:border-brand/50 hover:text-fg"
+              onClick={() => { playSound("tick"); setPpValue(c.value); }}
+              className="min-h-11 rounded-full border border-line px-3 text-xs text-muted transition-all hover:border-brand/50 hover:text-fg active:scale-95"
             >
               {c.name}
             </button>
@@ -276,9 +281,9 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
                   title={b.name}
                   aria-pressed={bankCode === b.abbr}
                   aria-label={b.name}
-                  onClick={() => setBankCode(b.abbr)}
+                  onClick={() => { playSound("tick"); setBankCode(b.abbr); }}
                   className={cn(
-                    "flex min-h-11 cursor-pointer flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] font-medium transition-colors duration-200",
+                    "flex min-h-11 cursor-pointer flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] font-medium transition-all duration-200 active:scale-95",
                     bankCode === b.abbr
                       ? "border-cyan text-fg"
                       : "border-line text-muted hover:border-cyan/30",
@@ -316,8 +321,8 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
             <button
               key={v}
               type="button"
-              onClick={() => setAmount(String(v))}
-              className="min-h-11 flex-1 rounded-lg border border-line text-xs tabular-nums text-muted hover:border-brand/50 hover:text-fg"
+              onClick={() => { playSound("tick"); setAmount(String(v)); }}
+              className="min-h-11 flex-1 rounded-lg border border-line text-xs tabular-nums text-muted transition-all hover:border-brand/50 hover:text-fg active:scale-95"
             >
               {v.toLocaleString("th-TH")}
             </button>
@@ -386,11 +391,11 @@ export function TransferForm({ method }: { method: Exclude<TransferMethod, "gift
               <Row k="สถานะผู้รับ" v={rec.status} ok={rec.status === "ปกติ"} />
             </dl>
             <div className="mt-5 flex flex-col gap-2">
-              <Button disabled={busy} aria-busy={busy} onClick={() => void confirm()}>
+              <Button disabled={busy} aria-busy={busy} onClick={() => { playSound("confirm"); void confirm(); }}>
                 <Check />
                 {busy ? "กำลังโอน…" : `ยืนยันจ่าย ${baht(n)}`}
               </Button>
-              <Button variant="secondary" onClick={() => setRec(null)}>
+              <Button variant="secondary" onClick={() => { playSound("tap"); setRec(null); }}>
                 <X />
                 ยกเลิก
               </Button>
