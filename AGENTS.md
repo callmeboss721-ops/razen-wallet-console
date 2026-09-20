@@ -1,3 +1,15 @@
+## Base44 Dev Environment
+
+This repo runs under Base44 via `docker-compose.base44.yml`:
+
+- **Start:** `docker compose -f docker-compose.base44.yml up -d` (port 3000 → container 8080)
+- **Stack:** Node 22 + Vite dev server (TanStack Start), PGLite embedded Postgres (no external DB needed)
+- **Live reload:** Vite HMR is active; edits appear without restarts
+- **Secrets:** platform-managed at `/run/base44/app.env`; all app env vars are optional for dev (PGLite + sim mode are the defaults)
+- **Verify:** `curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/` → 200
+
+---
+
 # App Builder Workspace
 
 **The single source of truth** for the App Builder sandbox contract. You are
