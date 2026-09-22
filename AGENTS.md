@@ -1,3 +1,18 @@
+## Base44 Dev Environment
+
+This repo runs under Base44 via `docker-compose.base44.yml`:
+
+- **Start:** `docker compose -f docker-compose.base44.yml up -d`
+- **Port:** host `3000` → container `8080` (the app's native Vite dev port)
+- **Runtime:** `node:22-slim`, source bind-mounted at `/workspace`, `npm install && npm run dev` on boot
+- **Live reload:** Vite dev server with HMR — edits appear without restart
+- **Database:** PGlite (embedded Postgres) — no external DB service needed; migrations auto-apply at startup
+- **Secrets:** delivered via `/run/base44/app.env` (wired as `env_file` in compose)
+- **No env vars required to boot** — all have fallbacks. TMN_* / RAZEN_MCP_TOKEN / VERCEL_TOKEN are optional external credentials.
+- **Vite host allowlist:** `__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS` passed through from host env (Vite ≥ 6.1)
+
+---
+
 # App Builder Workspace
 
 **The single source of truth** for the App Builder sandbox contract. You are
