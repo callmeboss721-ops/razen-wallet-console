@@ -1,4 +1,4 @@
-import TMNOne from "./TMNOne.js";
+import type TMNOne from "./TMNOne.js";
 import { pinLoginFailed } from "./apidoc.ts";
 
 /** Official JS sample from https://www.tmn.one/apidoc.html */
